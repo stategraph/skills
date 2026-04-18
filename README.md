@@ -62,7 +62,3 @@ You can also invoke a workflow directly:
 
 - The [`stategraph` CLI](https://stategraph.com) on your `PATH`.
 - A configured Stategraph tenant (`stategraph info` should succeed).
-
-## License
-
-MIT
