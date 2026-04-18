@@ -1,6 +1,6 @@
 # Stategraph skills
 
-Agent skills for working with [Stategraph](https://stategraph.dev) — a stateful layer for Terraform/OpenTofu that tracks infrastructure as a graph and manages state, plans, and refactors through its own CLI.
+Agent skills for working with [Stategraph](https://stategraph.com).
 
 This repo packages five skills compatible with [skills.sh](https://skills.sh), Claude Code, and other agents that load skills from `SKILL.md` files.
 
@@ -21,13 +21,13 @@ The router skill hands off to the others via the agent's Skill tool, so users ty
 With the [skills CLI](https://skills.sh):
 
 ```bash
-npx skills add terrateam/stategraph-skills
+npx skills add stategraph/skills
 ```
 
 Or install a specific skill:
 
 ```bash
-npx skills add terrateam/stategraph-skills -s stategraph-query
+npx skills add stategraph/skills -s stategraph-query
 ```
 
 ### Manual install (Claude Code)
@@ -35,8 +35,9 @@ npx skills add terrateam/stategraph-skills -s stategraph-query
 Clone into `~/.claude/skills/` so each skill lands at `~/.claude/skills/<name>/SKILL.md`:
 
 ```bash
-git clone https://github.com/terrateam/stategraph-skills /tmp/stategraph-skills
+git clone https://github.com/stategraph/skills /tmp/stategraph-skills
 cp -r /tmp/stategraph-skills/skills/* ~/.claude/skills/
+rm -rf /tmp/stategraph-skills
 ```
 
 ## Usage
@@ -59,7 +60,7 @@ You can also invoke a workflow directly:
 
 ## Requirements
 
-- The [`stategraph` CLI](https://stategraph.dev) on your `PATH`.
+- The [`stategraph` CLI](https://stategraph.com) on your `PATH`.
 - A configured Stategraph tenant (`stategraph info` should succeed).
 
 ## License
