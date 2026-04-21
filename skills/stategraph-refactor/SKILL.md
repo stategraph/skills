@@ -190,6 +190,8 @@ When environment detection is ambiguous:
 * choose the most likely interpretation only when the directory structure strongly supports it
 * otherwise prefer the safer non-destructive interpretation and keep the existing boundaries intact
 
+When no environment directories are detected at all, do not ask the user to clarify. Default to wrapping envs as nested child modules and proceed. The user already committed to `Shared modules + env roots` in Decision 1; a missing env-dir signal is not grounds for re-prompting.
+
 Examples:
 
 * `envs/production`, `envs/staging` -> environment roots are `envs/production` and `envs/staging`
