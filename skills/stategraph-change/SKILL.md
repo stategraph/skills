@@ -11,7 +11,7 @@ description: |
   - change review and approval flow
 
   Do not use this skill for:
-  - read-only MQL and inventory workflows
+  - read-only SQL and inventory workflows
   - importing Terraform state or HCL
   - refactor sessions
 

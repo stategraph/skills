@@ -11,6 +11,7 @@ description: |
   - importing Terraform state or HCL into Stategraph
   - planning or applying changes with the Stategraph CLI
   - running a Stategraph refactor session
+  - cost intelligence: state/tenant cost, attribution, history, or plan-time cost preview
 
   Do not use this skill for:
   - generic Terraform syntax questions
@@ -47,8 +48,8 @@ This skill does not carry full operational detail for every workflow. Its job is
 Prefer these canonical command families:
 
 - `stategraph info`
-- `stategraph mql schema`
-- `stategraph mql query`
+- `stategraph sql schema`
+- `stategraph sql query`
 - `stategraph states ...`
 - `stategraph tenant gaps ...`
 - `stategraph tf plan`
@@ -88,7 +89,7 @@ For write operations, show the planned effect before execution whenever possible
 
 ## Subskill routing
 
-This skill has four subskills. **When the user's request matches one, invoke it using the Skill tool as your FIRST action.** Do NOT answer directly, do NOT run stategraph commands first. The subskill owns the workflow.
+This skill has five subskills. **When the user's request matches one, invoke it using the Skill tool as your FIRST action.** Do NOT answer directly, do NOT run stategraph commands first. The subskill owns the workflow.
 
 The subskills live on disk at:
 
@@ -96,12 +97,13 @@ The subskills live on disk at:
 - `~/.claude/skills/stategraph-change/SKILL.md`
 - `~/.claude/skills/stategraph-import/SKILL.md`
 - `~/.claude/skills/stategraph-refactor/SKILL.md`
+- `~/.claude/skills/stategraph-cost/SKILL.md`
 
-Invoke via the Skill tool using the subskill's `name` field (e.g. `stategraph-query`). Users may also type these directly as slash commands (`/stategraph-query`, `/stategraph-change`, `/stategraph-import`, `/stategraph-refactor`) — when they do, invoke that skill immediately without re-routing.
+Invoke via the Skill tool using the subskill's `name` field (e.g. `stategraph-query`). Users may also type these directly as slash commands (`/stategraph-query`, `/stategraph-change`, `/stategraph-import`, `/stategraph-refactor`, `/stategraph-cost`) — when they do, invoke that skill immediately without re-routing.
 
 ### Routing rules — when you see these patterns, INVOKE the skill via the Skill tool
 
-- User wants to query, list, summarize, inventory, or inspect Stategraph data (MQL, state summaries, modules, resources, blast radius, gap analysis, security/compliance inspection) → invoke `stategraph-query`
+- User wants to query, list, summarize, inventory, or inspect Stategraph data (SQL, state summaries, modules, resources, blast radius, gap analysis, security/compliance inspection) → invoke `stategraph-query`
   - Examples: "what S3 buckets do we have?", "show all resources in this state", "what depends on aws_vpc.main?", "list modules in this state", "gap analysis for AWS"
 
 - User wants to plan, apply, delete, or control transactions (`stategraph tf plan`, `stategraph tf apply`, state deletion, `tx create/list/abort`) → invoke `stategraph-change`
@@ -112,6 +114,9 @@ Invoke via the Skill tool using the subskill's `name` field (e.g. `stategraph-qu
 
 - User wants the interactive Stategraph address-rewrite workflow (carve root into child modules, restructure a repo while preserving state addresses) → invoke `stategraph-refactor`
   - Examples: "refactor this Terraform repo into modules", "move resources into child modules without losing state", "restructure the repo and preserve addresses"
+
+- User wants cost intelligence — spend/cost of a state or tenant, cost attribution by tag/owner/provider, cost over time, the plan-time cost delta of a change, coverage gaps, or managing billing sources → invoke `stategraph-cost`
+  - Examples: "what does this tenant cost?", "cost of this state", "break down spend by Owner tag", "what will this change cost?", "which resources can't be priced?"
 
 **Do NOT answer the user's question directly when a matching subskill exists.** Each subskill has structured preflight, authorization, verification, and failure rules that produce better results than ad-hoc stategraph commands.
 

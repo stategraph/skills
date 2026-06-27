@@ -2,19 +2,20 @@
 
 Agent skills for working with [Stategraph](https://stategraph.com).
 
-This repo packages five skills compatible with [skills.sh](https://skills.sh), Claude Code, and other agents that load skills from `SKILL.md` files.
+This repo packages six skills compatible with [skills.sh](https://skills.sh), Claude Code, and other agents that load skills from `SKILL.md` files.
 
 ## Skills
 
 | Skill | Purpose |
 | --- | --- |
-| `stategraph` | Router. Detects Stategraph tasks and dispatches to one of the four workflow skills below. |
-| `stategraph-query` | Read-only MQL queries, state summaries, inventory, blast radius, and gap analysis. |
+| `stategraph` | Router. Detects Stategraph tasks and dispatches to one of the five workflow skills below. |
+| `stategraph-query` | Read-only SQL queries, state summaries, inventory, blast radius, and gap analysis. |
 | `stategraph-change` | `stategraph tf plan`, `stategraph tf apply`, state deletion, transaction lifecycle. |
 | `stategraph-import` | Import `.tfstate` or HCL into Stategraph; wire a Terraform repo to Stategraph. |
 | `stategraph-refactor` | Interactive address-rewrite workflow — restructure a repo while preserving state addresses. |
+| `stategraph-cost` | Cost intelligence: state/tenant spend, attribution, history, plan-time cost delta, and billing sources. |
 
-The router skill hands off to the others via the agent's Skill tool, so users typically just need the top-level `stategraph` skill installed and the subskills are invoked automatically. Installing all five together also makes each workflow directly addressable (e.g. `/stategraph-query`).
+The router skill hands off to the others via the agent's Skill tool, so users typically just need the top-level `stategraph` skill installed and the subskills are invoked automatically. Installing all six together also makes each workflow directly addressable (e.g. `/stategraph-query`).
 
 ## Install
 
@@ -48,6 +49,7 @@ Once installed, ask your agent anything Stategraph-related and the router will p
 - "Plan these changes." → `stategraph-change`
 - "Import this terraform.tfstate." → `stategraph-import`
 - "Refactor this repo into child modules without losing state." → `stategraph-refactor`
+- "What does this tenant cost?" → `stategraph-cost`
 
 You can also invoke a workflow directly:
 
@@ -56,6 +58,7 @@ You can also invoke a workflow directly:
 /stategraph-change
 /stategraph-import
 /stategraph-refactor
+/stategraph-cost
 ```
 
 ## Requirements

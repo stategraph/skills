@@ -10,7 +10,7 @@ description: |
   - preflight checks for importable sources
 
   Do not use this skill for:
-  - read-only MQL queries and summaries
+  - read-only SQL queries and summaries
   - standard plan/apply workflows
   - interactive refactor sessions after the repo is already wired
 
@@ -125,7 +125,7 @@ After import, verify at least one of these:
 ```bash
 stategraph states summary --state STATE_ID
 stategraph states resources summary --state STATE_ID
-stategraph mql query "SELECT * FROM resources" --state STATE_ID
+stategraph sql query "SELECT * FROM resources" --state STATE_ID
 ```
 
 If repo wiring is expected, confirm that `stategraph.json` now exists in the current working directory.
