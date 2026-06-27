@@ -4,7 +4,7 @@ description: |
   Query and read-only analysis skill for Stategraph.
 
   Use this skill for:
-  - MQL queries
+  - SQL queries
   - state summaries
   - module, resource, provider, and output listings
   - infrastructure inventory
@@ -19,7 +19,7 @@ description: |
 
 tags:
   - stategraph
-  - mql
+  - sql
   - inventory
   - compliance
   - security
@@ -40,8 +40,8 @@ These commands may run without confirmation:
 
 ```bash
 stategraph info
-stategraph mql schema
-stategraph mql query "..."
+stategraph sql schema
+stategraph sql query "..."
 stategraph states list --tenant TENANT_ID
 stategraph states summary --state STATE_ID
 stategraph states resources summary --state STATE_ID
@@ -58,7 +58,7 @@ Resolve only the inputs required for the query:
 
 * `TENANT_ID` for tenant-scoped operations
 * `STATE_ID` for state-scoped operations
-* MQL text for `mql query`
+* SQL text for `sql query`
 * resource address for blast radius
 * provider for gap analysis
 
@@ -79,8 +79,8 @@ stategraph info
 Use when table or column names are uncertain.
 
 ```bash
-stategraph mql schema
-stategraph mql schema --format json
+stategraph sql schema
+stategraph sql schema --format json
 ```
 
 Do not run schema discovery for every query by default. Use it when there is uncertainty.
@@ -94,20 +94,20 @@ stategraph states resources summary --state STATE_ID
 stategraph states modules list --state STATE_ID
 ```
 
-### MQL
+### SQL
 
 Canonical form:
 
 ```bash
-stategraph mql query "SELECT * FROM resources" --state STATE_ID
+stategraph sql query "SELECT * FROM resources" --state STATE_ID
 ```
 
 Notes:
 
 * `resources` is the usual table for filtering by `type` or `module`
 * `instances` is where instance attributes live
-* `modules` is not an MQL table
-* `LIKE` is not supported
+* `modules` is not a queryable table
+* `LIKE` and `ILIKE` (and `NOT LIKE` / `NOT ILIKE`) are supported for pattern matching
 * use `=` for exact matches
 
 ### Blast radius
@@ -133,28 +133,28 @@ stategraph tenant gaps analyze --tenant TENANT_ID --provider aws
 ```bash
 stategraph states summary --state STATE_ID
 stategraph states resources summary --state STATE_ID
-stategraph mql query "SELECT * FROM resources" --state STATE_ID
+stategraph sql query "SELECT * FROM resources" --state STATE_ID
 ```
 
 ### Resource type filtering
 
 ```bash
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_s3_bucket'" --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_iam_role'" --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_security_group'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_s3_bucket'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_iam_role'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_security_group'" --state STATE_ID
 ```
 
 ### Module inspection
 
 ```bash
 stategraph states modules list --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE module = 'module.vpc'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE module = 'module.vpc'" --state STATE_ID
 ```
 
 ### Instance attribute drill-down
 
 ```bash
-stategraph mql query "SELECT * FROM instances WHERE address = 'aws_s3_bucket.my_bucket'" --state STATE_ID
+stategraph sql query "SELECT * FROM instances WHERE address = 'aws_s3_bucket.my_bucket'" --state STATE_ID
 ```
 
 ### Blast radius
@@ -176,12 +176,12 @@ This skill is read-only. It can identify likely issues, not certify compliance.
 Useful entry-point queries:
 
 ```bash
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_s3_bucket'" --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_security_group'" --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_iam_role'" --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_iam_policy'" --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_ebs_volume'" --state STATE_ID
-stategraph mql query "SELECT * FROM resources WHERE type = 'aws_rds_instance'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_s3_bucket'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_security_group'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_iam_role'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_iam_policy'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_ebs_volume'" --state STATE_ID
+stategraph sql query "SELECT * FROM resources WHERE type = 'aws_rds_instance'" --state STATE_ID
 ```
 
 When the user needs attribute-level inspection, query `instances` by address.
@@ -207,7 +207,7 @@ Use `stategraph info`, then list tenants or states only as needed.
 Run:
 
 ```bash
-stategraph mql schema --format json
+stategraph sql schema --format json
 ```
 
 Then rewrite the query using exact table and column names.

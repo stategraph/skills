@@ -504,7 +504,7 @@ For direct apply, or later after PR merge and apply, verify:
 
 ```bash
 stategraph tf plan --tenant "$STATEGRAPH_TENANT_ID" --out /tmp/verify-plan.json
-stategraph mql query "SELECT address FROM resources WHERE module = ''" --state STATE_ID
+stategraph sql query "SELECT address FROM resources WHERE module = ''" --state STATE_ID
 ```
 
 Expected result:
