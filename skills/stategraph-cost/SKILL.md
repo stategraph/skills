@@ -1,22 +1,24 @@
 ---
 name: stategraph-cost
 description: |
-  Cost-intelligence skill for Stategraph.
+  Reads and manages cost data in Stategraph with the `stategraph cost` and
+  `stategraph tx costs` commands: estimated monthly and hourly cost of a state
+  or a whole tenant, attribution by tag, resource type, or provider, cost over
+  time, coverage gaps, the cost delta of a pending plan, a fresh recompute, and
+  FOCUS billing sources for actual cloud spend.
 
-  Use this skill for:
-  - the monthly/hourly cost of a state or a whole tenant
-  - cost attribution by tag, owner, environment, team, provider, or resource type
-  - cost over time (history / trend) for a tenant
-  - "what will this change cost?" — the plan-time current-vs-planned delta for a transaction
-  - cost coverage gaps (which resources are unsupported or unpriced)
-  - triggering a fresh cost calculation for a state
-  - managing FOCUS billing sources (actual cloud spend ingestion)
+  Use this skill when the user asks things like: "what does this state cost",
+  "what is our monthly cloud spend", "cost by team / environment / owner / tag",
+  "cost by resource type or provider", "how has cost changed", "cost trend",
+  "what will this change cost", "cost of this plan / transaction", "which
+  resources are not priced", "coverage gaps", "recalculate cost", "actual spend
+  vs estimate", "unmanaged spend", or "add / list / sync / remove a billing source".
 
   Do not use this skill for:
-  - planning or applying changes (use stategraph-change; this skill only *reads* the cost of a plan)
-  - importing state or HCL (use stategraph-import)
-  - refactor sessions (use stategraph-refactor)
-  - general SQL / inventory queries with no cost dimension (use stategraph-query)
+  - running a plan or apply (stategraph-change; this skill only reads the cost of a plan)
+  - importing state or HCL (stategraph-import)
+  - refactor sessions (stategraph-refactor)
+  - inventory or SQL questions with no cost dimension (stategraph-query)
 
 tags:
   - stategraph
@@ -26,210 +28,102 @@ tags:
   - focus
 metadata:
   author: Stategraph
-  version: "1.0"
+  version: "2.0"
 ---
 
-# Stategraph cost skill
+# Stategraph cost
 
-## Purpose
+## Setup
 
-This skill handles all Stategraph cost-intelligence workflows: estimated spend for a
-state or tenant, actual (FOCUS) spend attribution and unmanaged-spend detection, cost
-history, the plan-time cost delta of a transaction, and management of the FOCUS billing
-sources those actuals come from.
+- `STATEGRAPH_API_BASE` replaces `--api-base`. `STATEGRAPH_API_KEY` authenticates. `STATEGRAPH_TENANT_ID` replaces `--tenant`. `STATEGRAPH_TX_ID` replaces `--tx`.
+- `--state` has no environment variable. Pass the UUID. Resolve it from a name: `stategraph states resolve --name NAME` prints the bare UUID.
+- Read commands accept `--format=json`. Use it when you parse the output. `cost calculate`, `tx costs`, `states resolve`, and the billing-source write commands have no `--format` and reject it with exit 124.
+- Money fields are decimal strings. A missing money field means nothing in that scope is priced. `0.000000` means priced and free. Report the two cases differently.
 
-## Authorization rules
+## Disabled cost
 
-### Read-only — may run without confirmation
+The server can run with cost off. The signs, in the order you meet them:
 
-```bash
-stategraph cost tenant --tenant TENANT_ID
-stategraph cost state --state STATE_ID
-stategraph cost history --tenant TENANT_ID
-stategraph cost attribution --tenant TENANT_ID
-stategraph cost unmanaged --tenant TENANT_ID
-stategraph cost unsupported --state STATE_ID
-stategraph cost tag-keys --tenant TENANT_ID
-stategraph cost billing-source list --tenant TENANT_ID
-stategraph tx costs --tx TX_ID
-```
+- States that were never priced show no cost columns in `cost tenant`. `cost state` prints `State has never been priced. Run: stategraph cost calculate --state ID` and exits 1.
+- `cost calculate` then prints `Pricing service is not configured on this server.` and exits 1. Report that once and stop. Do not retry any cost command.
+- `tx costs` prints `Cost tracking is not enabled on this server.` and `tf plan` prints no `Costs:` block.
 
-### Require explicit user authorization — these MUTATE
+## Commands, in the order to run them
 
 ```bash
-stategraph cost calculate --state STATE_ID            # enqueues a recompute
-stategraph cost billing-source add --tenant TENANT_ID --provider aws --source-uri URI
-stategraph cost billing-source update SOURCE_ID --tenant TENANT_ID
-stategraph cost billing-source remove SOURCE_ID --tenant TENANT_ID
-stategraph cost billing-source enable SOURCE_ID --tenant TENANT_ID
-stategraph cost billing-source disable SOURCE_ID --tenant TENANT_ID
-stategraph cost billing-source sync SOURCE_ID --tenant TENANT_ID
+stategraph cost tenant --format=json                        # tenant total, coverage, by_provider, by_type, states[]
+stategraph cost state --state STATE_ID --format=json        # one state: totals, coverage, instance_costs[] with components[]
+stategraph cost tag-keys --format=json                      # tag keys you can attribute by
+stategraph cost tenant --tag-key Team --format=json         # estimate split by tag value, in by_tag[]; untagged row included
+stategraph cost history --format=json                       # one point per day, oldest first, last 30 days
+stategraph cost history --from 2026-09-01 --to 2026-09-28 --group-by provider --format=json
+stategraph cost history --group-by tag --tag-key Team --format=json
+stategraph cost unsupported --state STATE_ID --format=json  # resources outside the totals: no_price or unsupported
+stategraph cost attribution --format=json                   # actual FOCUS spend matched to managed resources
+stategraph cost unmanaged --limit 20 --format=json          # billed resources no state manages
+stategraph tx costs --tx TX_ID                              # current vs planned delta of a pending plan
+stategraph cost calculate --state STATE_ID                  # queue a recompute; asynchronous
 ```
 
-`cost calculate` only enqueues a recompute job; it does not touch infrastructure. The
-`billing-source add/update/remove/enable/disable/sync` commands change tenant billing
-configuration and what spend gets ingested. `remove` is destructive and prompts unless
-`--auto-approve` is passed.
+- `cost tenant`, `cost state`, and `cost history` are estimates from the price book. `cost attribution` and `cost unmanaged` are actuals from a billing source. Say which one you report.
+- `--group-by` takes `provider`, `type`, or `tag`. `tag` needs `--tag-key`, or the server rejects the call with exit 1. `--from` and `--to` take ISO 8601 dates or timestamps.
+- Read every total with its `coverage_percent`. Below 100, run `cost unsupported` and show the gap list with the total. Most gaps are free resources such as parameter groups, subnet groups, and IAM.
+- With no billing source, `cost attribution` returns zeros and `cost unmanaged` returns an empty `results`. Check `cost billing-source list` before you call that a finding.
+- Field names and example output shapes: read `references/output.md` when you must parse or explain a field.
 
-## Required inputs
+## Plan-time delta
 
-Every command requires `--api-base` (env `STATEGRAPH_API_BASE`). Resolve only the scope
-the command needs:
+`stategraph tf plan --out plan.json` prints a `Costs:` block after the diff. It waits `--costs-wait` seconds (default 3, env `STATEGRAPH_COSTS_WAIT_SECONDS`). `--skip-costs` turns the fetch off, and `--skip-costs` with `--costs-wait` exits 124.
 
-* tenant-scoped commands take `--tenant UUID` (env `STATEGRAPH_TENANT_ID`):
-  `cost tenant`, `cost history`, `cost attribution`, `cost unmanaged`, `cost tag-keys`,
-  and all `cost billing-source` subcommands
-* state-scoped commands take `--state UUID` (no env fallback — pass it explicitly):
-  `cost state`, `cost unsupported`, `cost calculate`
-* `tx costs` takes `--tx UUID` (env `STATEGRAPH_TX_ID`)
-* `billing-source update/remove/enable/disable/sync` also take a positional `SOURCE_ID`
-
-Do not gather context a command does not need. If only a state name or workspace is
-known, resolve the state ID first (see stategraph-change), then pass `--state`.
-
-## Estimates vs actuals
-
-This distinction drives which command to reach for:
-
-* **Estimates (pricing engine):** `cost state`, `cost tenant`, `cost history`, and the
-  `tx costs` delta are computed from priced cost snapshots. They answer "what should this
-  cost?" and exist even with no billing data wired up.
-* **Actuals (FOCUS billing):** `cost attribution` and `cost unmanaged` read actual cloud
-  spend ingested from FOCUS billing sources. They answer "what did we actually pay, and to
-  which managed/unmanaged resources?" and require at least one enabled billing source.
-
-If actuals come back empty, check `cost billing-source list` — there may be no source, or
-it may be disabled or not yet synced.
-
-## Canonical command ladder
-
-### Tenant-level rollups (estimates + actuals)
+When the plan printed `Costs: preview not yet ready`, or the user asks later:
 
 ```bash
-stategraph cost tenant --tenant TENANT_ID                    # totals, coverage, per-state
-stategraph cost tenant --tenant TENANT_ID --tag-key Env      # break down by a tag's values
-stategraph cost history --tenant TENANT_ID                   # daily series, last 30d default
-stategraph cost history --tenant TENANT_ID --from 2026-01-01 --to 2026-03-31 \
-  --group-by tag --tag-key Owner                             # grouped trend
-stategraph cost attribution --tenant TENANT_ID               # actual spend -> managed resources
-stategraph cost unmanaged --tenant TENANT_ID --limit 20      # billed but unmanaged spend
-stategraph cost tag-keys --tenant TENANT_ID                  # tag keys usable for attribution
+TX_ID=$(jq -r .tx_id plan.json)
+stategraph tx costs --tx "$TX_ID"
 ```
 
-`--group-by` accepts `provider`, `type`, or `tag` (the last requires `--tag-key`).
-`--from`/`--to` are ISO 8601; default window is the last 30 days through now.
+- Only a transaction from `tf plan` or `tf mtx` has a preview. A plan without `--out` opens a transient transaction that you cannot query later. A plan that prints `No changes detected.` writes no `tx_id` and has no delta. Stop there.
+- `Cost preview not yet ready.` with exit 1: wait a few seconds and run it again, once.
+- `Transaction not found, or aborted` with exit 1: an abort drops the preview. Committed transactions keep it.
+- Each `Totals` line reads `current → planned (delta)`. A dash means that side has nothing priced. Per state, `+` is added, `-` removed, `~` changed.
 
-### State-level (estimates)
+## Recompute
+
+`cost calculate` prints `Cost calculation queued (task TASK_ID). Re-run ...` and exits 0 at once. The new snapshot lands when the task completes. Then:
 
 ```bash
-stategraph cost state --state STATE_ID                       # totals, coverage, per-resource
-stategraph cost unsupported --state STATE_ID                 # resources the engine can't price
-stategraph cost calculate --state STATE_ID                   # MUTATING: enqueue a recompute
+curl -s -H "Authorization: Bearer $STATEGRAPH_API_KEY" "$STATEGRAPH_API_BASE/api/v1/tasks/TASK_ID"   # until "state":"completed"
+stategraph cost state --state STATE_ID --format=json                                                 # calculated_at moves
 ```
 
-Use `cost unsupported` to explain low coverage from `cost state`/`cost tenant`. Use
-`cost calculate` when a snapshot is stale; it returns once the recompute is queued, so
-re-run `cost state` afterward to read the fresh numbers.
+Treat task state `failed` or `aborted` as an error. Recompute only when the snapshot is missing or stale. Snapshots also refresh on import, after apply, and on a daily schedule.
 
-### Plan-time delta (current vs planned)
+## Billing sources (actual spend)
+
+Tenant admins only. A non-admin gets `Forbidden: admin privileges required` and exit 1. All take `--tenant` or `STATEGRAPH_TENANT_ID`. All except `add` and `list` take the source id as a positional argument.
 
 ```bash
-stategraph tx costs --tx TX_ID
+stategraph cost billing-source list --format=json
+stategraph cost billing-source add --provider aws --source-uri 's3://bucket/prefix/data/**/*.parquet'   # prints the source as JSON
+stategraph cost billing-source update SOURCE_ID --enabled=false     # also --enabled=true, --source-uri, --region, --window-months
+stategraph cost billing-source sync SOURCE_ID --from 2026-01-01     # sync now; --from backfills from a date
+stategraph cost billing-source remove SOURCE_ID --auto-approve      # deletes the source and its loaded rows
 ```
 
-Shows the current-vs-planned cost delta for a pending transaction, per state and per
-resource (added / removed / changed). `stategraph tf plan` already attempts a one-shot
-cost-delta preview after the diff and waits up to `--costs-wait` seconds (default 3,
-env `STATEGRAPH_COSTS_WAIT_SECONDS`); `--skip-costs` disables that fetch entirely.
-Combining `--skip-costs` with `--costs-wait` is a usage error. When plan's inline preview
-times out, fall back to `tx costs --tx TX_ID` for the full delta.
+`add`, `update`, `enable`, `disable`, `sync`, and `remove` change tenant billing configuration. Confirm with the user before you run them. `add` takes `--provider aws|gcp|azure`, `--source-uri`, and optional `--region`, `--window-months` (default 2), `--disabled`. Provider export setup, URI shapes, and `list` columns: read `references/billing-sources.md`.
 
-### Billing-source management (FOCUS actual-spend ingestion)
+## SQL
 
-```bash
-stategraph cost billing-source list --tenant TENANT_ID
-stategraph cost billing-source add --tenant TENANT_ID --provider aws \
-  --source-uri 's3://bucket/prefix/data/**/*.parquet'        # also gcp / azure URIs
-stategraph cost billing-source update SOURCE_ID --tenant TENANT_ID --source-uri NEW_URI
-stategraph cost billing-source enable  SOURCE_ID --tenant TENANT_ID
-stategraph cost billing-source disable SOURCE_ID --tenant TENANT_ID
-stategraph cost billing-source sync    SOURCE_ID --tenant TENANT_ID   # optional --from YYYY-MM-DD
-stategraph cost billing-source remove  SOURCE_ID --tenant TENANT_ID   # optional --auto-approve
-```
+`stategraph sql query` reads the `cost_snapshots` and `cost_snapshot_resources` tables. Use it for a ranking or a slice the commands above do not give. Working queries and the parser limits: read `references/sql.md`.
 
-`add` requires `--provider` (`aws`, `gcp`, `azure`) and `--source-uri`; optional
-`--region`, `--window-months` (default 2), and `--disabled` to create it dormant.
-Credentials resolve ambiently (instance role / workload identity / az login / standard
-env vars). All of these except `list` mutate billing config — confirm before running.
+## Report
 
-## Common patterns
+For each result give the command, the scope (tenant, state, or transaction), estimate or actual, the key numbers, the coverage, and any gap or empty billing source. For a write command say what changed on the server.
 
-### What does this tenant cost, and where is coverage weak?
+## Exit codes
 
-```bash
-stategraph cost tenant --tenant TENANT_ID
-stategraph cost unsupported --state STATE_ID    # for any state with low coverage
-```
-
-### Who/what is driving spend?
-
-```bash
-stategraph cost tag-keys --tenant TENANT_ID                 # discover usable tag keys first
-stategraph cost attribution --tenant TENANT_ID              # actuals by managed resource
-stategraph cost tenant --tenant TENANT_ID --tag-key Team    # estimate split by a tag
-```
-
-### Find waste (paid for, not managed)
-
-```bash
-stategraph cost unmanaged --tenant TENANT_ID --limit 50
-```
-
-### Cost a pending change before applying
-
-```bash
-stategraph tx costs --tx TX_ID
-```
-
-## Output contract
-
-Most read commands accept `--format table|json|simple` (table is the default; `simple`
-prints one value per line with no headers). `cost calculate`, `tx costs`, and the
-`billing-source` mutating subcommands do not take `--format`.
-
-For every result, report:
-
-1. the command run
-2. the scope used: tenant, state, or transaction
-3. whether the figures are **estimates** (pricing engine) or **actuals** (FOCUS billing)
-4. the key numbers (monthly/hourly totals, coverage, or the signed delta)
-5. any caveat — partial coverage, an empty/disabled billing source, or a stale snapshot
-6. the next useful command (e.g. `cost unsupported` to explain low coverage)
-
-For mutating commands (`calculate`, `billing-source` writes) also state plainly that the
-action changes server-side state and report the result.
-
-## Failure handling
-
-### Missing tenant, state, or tx id
-
-Resolve it before guessing. Use stategraph-query (`stategraph states list --tenant ...`)
-to find a state ID and stategraph-change (`stategraph tx list --tenant ...`) to find a
-transaction ID. Do not invent UUIDs.
-
-### Cost numbers are empty or zero
-
-* estimates empty → no priced snapshot yet; run `cost calculate --state STATE_ID`, then
-  re-read `cost state`
-* actuals empty → check `cost billing-source list`; the source may be missing, disabled,
-  or not yet synced (`cost billing-source sync SOURCE_ID --tenant TENANT_ID`)
-
-### Coverage is low
-
-Run `cost unsupported --state STATE_ID` to list the resources the pricing engine cannot
-price; report them rather than implying the total is complete.
-
-### User asks to plan or apply from here
-
-This skill only *reads* cost. Route plan/apply, transaction creation, and state deletion
-to stategraph-change.
+| Code | Meaning |
+|------|---------|
+| 0 | Success. `cost calculate` and `sync` exit 0 when the job is queued, not when it is done. |
+| 1 | The server refused the call. The reason is on stderr: never priced, not found, forbidden, or a bad parameter. |
+| 124 | Wrong or missing flag, `--format` on a command without it, `--skip-costs` with `--costs-wait`. |

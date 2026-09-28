@@ -2,20 +2,22 @@
 
 Agent skills for working with [Stategraph](https://stategraph.com).
 
-This repo packages six skills compatible with [skills.sh](https://skills.sh), Claude Code, and other agents that load skills from `SKILL.md` files.
+This repo packages eight skills compatible with [skills.sh](https://skills.sh), Claude Code, and other agents that load skills from `SKILL.md` files.
 
 ## Skills
 
 | Skill | Purpose |
 | --- | --- |
-| `stategraph` | Router. Detects Stategraph tasks and dispatches to one of the five workflow skills below. |
+| `stategraph` | Router. Detects Stategraph tasks and dispatches to one of the seven workflow skills below. |
 | `stategraph-query` | Read-only SQL queries, state summaries, inventory, blast radius, and gap analysis. |
 | `stategraph-change` | `stategraph tf plan`, `stategraph tf apply`, state deletion, transaction lifecycle. |
 | `stategraph-import` | Import `.tfstate` or HCL into Stategraph; wire a Terraform repo to Stategraph. |
 | `stategraph-refactor` | Interactive address-rewrite workflow — restructure a repo while preserving state addresses. |
 | `stategraph-cost` | Cost intelligence: state/tenant spend, attribution, history, plan-time cost delta, and billing sources. |
+| `stategraph-security` | Security scan results: findings by severity, scan history, posture over time, and a plan's security impact. |
+| `stategraph-capabilities` | Identity and access: access tokens, default capabilities, group rules, and what the current session can do. |
 
-The router skill hands off to the others via the agent's Skill tool, so users typically just need the top-level `stategraph` skill installed and the subskills are invoked automatically. Installing all six together also makes each workflow directly addressable (e.g. `/stategraph-query`).
+The router skill hands off to the others via the agent's Skill tool, so users typically just need the top-level `stategraph` skill installed and the subskills are invoked automatically. Installing all eight together also makes each workflow directly addressable (e.g. `/stategraph-query`).
 
 ## Install
 
@@ -50,6 +52,8 @@ Once installed, ask your agent anything Stategraph-related and the router will p
 - "Import this terraform.tfstate." → `stategraph-import`
 - "Refactor this repo into child modules without losing state." → `stategraph-refactor`
 - "What does this tenant cost?" → `stategraph-cost`
+- "Any critical security findings in production?" → `stategraph-security`
+- "Create a read-only access token for CI." → `stategraph-capabilities`
 
 You can also invoke a workflow directly:
 
@@ -59,6 +63,8 @@ You can also invoke a workflow directly:
 /stategraph-import
 /stategraph-refactor
 /stategraph-cost
+/stategraph-security
+/stategraph-capabilities
 ```
 
 ## Requirements
